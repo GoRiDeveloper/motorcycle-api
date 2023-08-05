@@ -1,119 +1,73 @@
+import { catchAsync } from '../utils/catch.async.js';
 import {
-
     getUsers,
-    getUser,
     createUser,
     patchUser,
-    disableUser
+    disableUser,
+    login,
+} from '../service/user.service.js';
 
-} from "../service/user.service.js";
-
-export const findAll = async (req, res) => {
-
-    const users = await getUsers();
-
-    if (!users) {
-
-        return res.status(404).json({
-            message: "No Se Encontraron Usuarios",
-            status: "fail",
-            users
-        });
-
-    };
+export const findAll = catchAsync(async (req, res, next) => {
+    const { rows: users, count: results } = await getUsers();
 
     res.status(200).json({
-        message: "Usuarios encontrados",
-        status: "success",
-        users
+        status: 'success',
+        message: 'Usuarios Encontrados',
+        results,
+        users,
     });
+});
 
-};
-
-export const findOne = async ({ params: { id } }, res) => {
-
-    const user = await getUser({ id });
-
-    if (!user) {
-
-        return res.status(404).json({
-            message: `El Usuario Con El ID ${id}, No Existe`,
-            status: "fail",
-            user
-        });
-
-    };
+export const findOne = catchAsync(async (req, res, next) => {
+    const { user } = req;
 
     res.status(200).json({
-        message: "Usuario Encontrado",
-        status: "success",
-        user
+        message: 'Usuario Encontrado',
+        status: 'success',
+        user: {
+            name: user.name,
+            email: user.email,
+        },
     });
+});
 
-};
-
-export const create = async ({ body }, res) => {
-
-    const user = await createUser(body);
-
-    if (!user) {
-
-        return res.status(500).json({
-            message: "No Se Pudo Crear El Usuario.",
-            status: "fail",
-            user
-        });
-
-    };
+export const create = catchAsync(async (req, res, next) => {
+    const { token, user } = await createUser(req.body);
 
     res.status(201).json({
-        message: "Usuario Creado",
-        status: "success",
-        user
+        status: 'success',
+        message: 'Usuario Creado',
+        token,
+        user,
     });
+});
 
-};
-
-export const update = async ({ body, params: { id } }, res) => {
-
-    const updateUser = await patchUser(id, body);
-
-    if (!updateUser) {
-
-        return res.status(500).json({
-            message: "No Se Pudo Actualizar El Usuario",
-            status: "fail",
-            user: updateUser
-        });
-
-    };
+export const update = catchAsync(async (req, res) => {
+    const updateUser = await patchUser(req.params.id, req.body);
 
     res.status(200).json({
-        message: "Usuario Actualizado",
-        status: "success",
-        user: updateUser
-    })
+        message: 'Usuario Actualizado',
+        status: 'success',
+        user: updateUser,
+    });
+});
 
-};
+export const deleteOne = catchAsync(async (req, res, next) => {
+    const userDisabled = await disableUser(req.params.id);
 
-export const deleteOne = async ({ params: { id } }, res) => {
+    res.status(204).json({
+        status: 'success',
+        message: 'Usuario Deshabilitado.',
+        userDisabled,
+    });
+});
 
-    const userDeleted = await disableUser(id);
-
-    if (!userDeleted) {
-
-        return res.status(500).json({
-            message: "No Se Pudo Eliminar El Usuario.",
-            status: "fail",
-            userDeleted
-        });
-
-    };
+export const signIn = catchAsync(async (req, res, next) => {
+    const { token, user } = await login(req.body);
 
     res.status(200).json({
-        message: "Usuario Deshabilitado",
-        status: "success",
-        user: userDeleted
+        status: 'success',
+        token,
+        user,
     });
-
-};
+});

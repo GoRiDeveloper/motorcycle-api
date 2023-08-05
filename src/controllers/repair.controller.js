@@ -1,118 +1,56 @@
+import { catchAsync } from '../utils/catch.async.js';
 import {
-
     getPendings,
     getPending,
     createAppointment,
     patchAppointment,
-    cancellAppointment
+    cancellAppointment,
+} from '../service/repair.service.js';
 
-} from "../service/repair.service.js";
-
-export const findAll = async (req, res) => {
-
-    const repairs = await getPendings();
-
-    if (!repairs) {
-
-        return res.status(404).json({
-            message: "No Se Encontraron Reparaciones Pendientes",
-            status: "fail",
-            repairs
-        });
-
-    };
+export const findAll = catchAsync(async (req, res, next) => {
+    const { rows: repairs, count: results } = await getPendings();
 
     res.status(200).json({
-        results: repairs.lenght,
-        status: "success",
-        repairs
+        status: 'success',
+        ...(results < 1 && { message: 'No Hay Citas Pendientes' }),
+        results,
+        repairs,
     });
+});
 
-};
-
-export const findOne = async ({ params: { id } }, res) => {
-
-    const repair = await getPending({ id });
-
-    if (!repair) {
-
-        return res.status(404).json({
-            message: `La Reparación Con El ID ${id}, No Existe`,
-            status: "fail",
-            repair
-        });
-
-    };
+export const findOne = catchAsync(async (req, res, next) => {
+    const repair = await getPending({ id: req.params.id });
 
     res.status(200).json({
-        status: "success",
-        repair
+        status: 'success',
+        repair,
     });
+});
 
-};
-
-export const create = async ({ body }, res) => {
-
-    const appointment = await createAppointment(body);
-
-    if (!appointment) {
-
-        return res.status(500).json({
-            message: "No Se Pudo Crear La Cita.",
-            status: "fail",
-            appointment
-        });
-
-    };
+export const create = catchAsync(async (req, res, next) => {
+    const appointment = await createAppointment(req.body);
 
     res.status(201).json({
-        message: "Cita Creada",
-        status: "success",
-        appointment
+        status: 'success',
+        message: 'Cita Creada',
+        appointment,
     });
+});
 
-};
+export const update = catchAsync(async (req, res, next) => {
+    await patchAppointment(req.params.id);
 
-export const update = async ({ params: { id } }, res) => {
-
-    const updateAppointment = await patchAppointment(id);
-
-    if (!updateAppointment) {
-
-        return res.status(500).json({
-            message: "No Se Pudo Actualizar La Cita",
-            status: "fail",
-            appointment: updateAppointment
-        });
-
-    };
-
-    res.status(200).json({
-        message: "Cita Actualizada.",
-        status: "success",
-        appointment: updateAppointment
-    })
-
-};
-
-export const cancell = async ({ params: { id } }, res) => {
-
-    const appointment = await cancellAppointment(id);
-
-    if (!appointment) {
-
-        return res.status(500).json({
-            message: "No Se Pudo Cancelar La Cita.",
-            status: "fail",
-            appointment
-        });
-
-    };
-
-    res.status(200).json({
-        message: "Cita Cancelada",
-        status: "success",
-        appointment
+    res.status(204).json({
+        status: 'success',
+        message: 'Cita Actualizada.',
     });
+});
 
-};
+export const cancell = catchAsync(async (req, res, next) => {
+    await cancellAppointment(req.params.id);
+
+    res.status(204).json({
+        status: 'success',
+        message: 'Cita Cancelada',
+    });
+});

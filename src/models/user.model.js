@@ -1,45 +1,35 @@
-import { DataTypes } from "sequelize";
-import { db } from "../database/database.config.js";
+import { DataTypes } from 'sequelize';
+import { db } from '../database/database.config.js';
 
-export const User = db.define("user", {
-
+export const User = db.define('user', {
     id: {
-
         primaryKey: true,
         autoIncrement: true,
         allowNull: false,
         unique: true,
-        type: DataTypes.INTEGER
-
+        type: DataTypes.INTEGER,
     },
     name: {
         allowNull: false,
-        type: DataTypes.STRING(30)
+        type: DataTypes.STRING(40),
     },
     email: {
-
         unique: true,
         allowNull: false,
-        type: DataTypes.STRING(50)
-
+        type: DataTypes.STRING(75),
     },
     password: {
         allowNull: false,
-        type: DataTypes.STRING(30)
+        type: DataTypes.STRING,
     },
     role: {
-
         allowNull: true,
-        defaultValue: "client",
-        type: DataTypes.ENUM("client", "employee")
-
+        defaultValue: 'client',
+        type: DataTypes.ENUM('client', 'employee'),
     },
     status: {
-
         allowNull: true,
-        defaultValue: true,
-        type: DataTypes.BOOLEAN
-        
-    }
-
+        defaultValue: 'available',
+        type: DataTypes.ENUM(['available', 'disabled']),
+    },
 });

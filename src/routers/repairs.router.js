@@ -1,22 +1,34 @@
-import { Router } from "express";
-import { auth } from "../middlewares/auth.middleware.js";
+import { Router } from 'express';
+import { config } from '../config/config.js';
 import {
-
+    paramIdValidator,
+    createAppointmentValidator,
+} from '../middlewares/validate.middleware.js';
+import {
+    protect,
+    restrictTo,
+} from '../middlewares/auth.middleware.js';
+import {
     findAll,
-    findOne,
     create,
+    findOne,
     update,
-    cancell
-
-} from "../controllers/repair.controller.js";
+    cancell,
+} from '../controllers/repair.controller.js';
 
 export const repairRouter = Router();
 
-repairRouter.route("/")
-    .get(auth, findAll)
-    .post(auth, create);
+repairRouter.use(protect);
 
-repairRouter.route("/:id")
-    .get(auth, findOne)
-    .patch(auth, update)
-    .delete(auth, cancell);
+repairRouter.post('/', createAppointmentValidator, create);
+
+repairRouter.use(restrictTo(config.roles[1]));
+
+repairRouter.route('/').get(findAll);
+
+repairRouter
+    .use('/:id', paramIdValidator)
+    .route('/:id')
+    .get(findOne)
+    .patch(update)
+    .delete(cancell);

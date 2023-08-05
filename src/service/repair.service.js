@@ -1,123 +1,86 @@
-import { Repair } from "../models/repair.model.js";
-import { verifyValues } from "../utils/object.utils.js";
+import { config } from '../config/config.js';
+import { Repair } from '../models/repair.model.js';
+import { User } from '../models/user.model.js';
+import { AppError } from '../utils/app.error.js';
+import { verifyValues } from '../utils/object.utils.js';
 
-const STATUS_VALUES = {
-    completed: "completed",
-    pending: "pending",
-    cancelled: "cancelled"
-};
+const STATUS_VALUES = Object.freeze({
+    completed: 'completed',
+    pending: 'pending',
+    cancelled: 'cancelled',
+});
 
 export const getPendings = async () => {
+    const repairs = await Repair.findAndCountAll({
+        where: {
+            status: STATUS_VALUES.pending,
+        },
+        attributes: {
+            exclude: ['id', 'userId'],
+        },
+        include: [
+            {
+                model: User,
+                attributes: config.userAttributes,
+            },
+        ],
+    });
 
-    try {
-
-        const repairs = await Repair.findAll({
-            where: {
-                status: STATUS_VALUES.pending
-            }
-        });
-        return repairs;
-
-    } catch (e) {
-
-        new Error(`Ocurrio un error : ${e}.`);
-        return false;
-
-    };
-
+    return repairs;
 };
 
-export const getPending = async (objProp) => {
-
+export const getPending = async (objProp, attributes) => {
     verifyValues(objProp);
-    
-    try {
 
-        const repair = await Repair.findOne({
-            where: {
-                ...objProp,
-                status: STATUS_VALUES.pending
-            }
-        });
-        if (!repair) return new Error("La Cita Ya No Esta Pendiente.");
-        return repair;
+    const repair = await Repair.findOne({
+        where: {
+            ...objProp,
+            status: STATUS_VALUES.pending,
+        },
+        attributes: {
+            exclude: [
+                attributes.includes('id') ? '' : 'id',
+                'userId',
+            ],
+        },
+        include: [
+            {
+                model: User,
+                attributes: config.userAttributes,
+            },
+        ],
+    });
 
-    } catch (e) {
+    if (!repair)
+        return new AppError('La Cita Ya No Esta Pendiente.', 404);
 
-        new Error(`Ocurrio un error : ${e}.`);
-        return false;
-
-    };
-
+    return repair;
 };
 
-export const createAppointment = async (body) => {
+export const createAppointment = async (data) => {
+    const appointment = await Repair.create(data);
 
-    const appointment = {
-        date: new Date(),
-        userId: body.userId
+    return {
+        date: appointment.date,
+        motorsNumber: appointment.motorsNumber,
+        description: appointment.description,
     };
-
-    if (body.status) 
-        appointment.status = body.status;
-
-    verifyValues(appointment);
-
-    try {
-
-        const create = await Repair.create(appointment);
-        return create;
-    
-    } catch (e) {
-
-        console.log(`Ocurrio Un Error : ${e}.`);
-        return false;
-        
-    };
-    
-
 };
 
 export const patchAppointment = async (id) => {
+    const attributes = ['id'];
+    const appointment = await getPending({ id }, attributes);
 
-    try {
-
-        const appointment = await getPending({ id });
-
-        if (!appointment) 
-            return new Error(`La Cita Con El ID: ${id}, ¡No Existe!.`);
-
-        await appointment.update({ status: STATUS_VALUES.completed });
-
-        return appointment;
-
-    } catch (e) {
-
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-
-    };
-    
+    return await appointment.update({
+        status: STATUS_VALUES.completed,
+    });
 };
 
 export const cancellAppointment = async (id) => {
+    const attributes = ['id'];
+    const appointment = await getPending({ id }, attributes);
 
-    try {
-
-        const appointment = await getPending({ id });
-
-        if (!appointment) 
-            return new Error(`La Cita Con El ID: ${id}, ¡No Existe!.`);
-
-        await appointment.update({ status: STATUS_VALUES.cancelled });
-
-        return appointment;
-
-    } catch (e) {
-
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-
-    };
-
+    return await appointment.update({
+        status: STATUS_VALUES.cancelled,
+    });
 };

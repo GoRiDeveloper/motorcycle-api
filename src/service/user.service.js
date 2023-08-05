@@ -1,122 +1,88 @@
-import { User } from "../models/user.model.js";
-import { verifyValues } from "../utils/object.utils.js";
+import { User } from '../models/user.model.js';
+import { config } from '../config/config.js';
+import { verifyValues } from '../utils/object.utils.js';
+import { AppError } from '../utils/app.error.js';
+import { encryptPass, comparePass } from '../utils/password.utils.js';
+import { generateJWT } from '../utils/jwt.js';
 
 export const getUsers = async () => {
+    const users = await User.findAndCountAll({
+        where: {
+            status: config.userStatus[0],
+        },
+        attributes: config.userAttributes,
+    });
 
-    try {
-
-        const users = await User.findAll({
-            where: {
-                status: true
-            }
-        });
-        return users;
-
-    } catch (e) {
-
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-
-    };
-
+    return users;
 };
 
-export const getUser = async (objProp) => {
-
+export const getUser = async (objProp, attributes, error) => {
     verifyValues(objProp);
 
-    try {
+    const user = await User.findOne({
+        where: {
+            ...objProp,
+            status: config.userStatus[0],
+        },
+        attributes: attributes ? attributes : config.userAttributes,
+    });
 
-        const user = await User.findOne({
-            where: {
-                ...objProp,
-                status: true
-            }
-        });
-        return user;
-        
-    } catch (e) {
-      
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-        
-    };
+    if (!user && error)
+        throw new AppError('El Usuario No Existe.', 401);
 
+    return user;
 };
 
-export const createUser = async (body) => {
+export const createUser = async (user) => {
+    user.password = await encryptPass(user.password);
 
-    const user = {
+    const createUser = await User.create(user);
+    const token = await generateJWT(createUser.id);
 
-        name: body.name,
-        email: body.email,
-        password: body.password,
-        role: body.role,
-        status: body.status
-
+    return {
+        token,
+        user: {
+            name: createUser.name,
+            email: createUser.email,
+        },
     };
-    verifyValues(user);
-
-    try {
-
-        const { email } = user;
-        const emailExists = await getUser({ email });
-
-        if (emailExists) 
-            return new Error(`El Usuario Con El E-Mail: ${body.email}, ¡Ya Existe!.`);
-
-        const createUser = await User.create(user);
-        return createUser;
-    
-    } catch (e) {
-
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-        
-    };
-
 };
 
 export const patchUser = async (id, body) => {
+    const attributes = [...config.userAttributes, 'id'];
+    const userExists = await getUser({ id }, attributes, true);
 
-    try {
+    await userExists.update(body);
 
-        const userExists = await getUser({ id });
-
-        if (!userExists) 
-            return new Error(`El Usuario Con El ID: ${id}, ¡No Existe!.`);
-
-        await userExists.update(body);
-
-        return userExists;
-
-    } catch (e) {
-
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-
+    return {
+        name: userExists.name,
+        email: userExists.email,
+        updatedAt: userExists.updatedAt,
     };
-
 };
 
 export const disableUser = async (id) => {
+    const attributes = [...config.userAttributes, 'id'];
+    const user = await getUser({ id }, attributes, true);
 
-    try {
+    return await user.update({ status: false });
+};
 
-        const userExists = await getUser({ id });
+export const login = async (data) => {
+    const { email, password } = data;
 
-        if (!userExists) 
-            return new Error(`El Usuario Con El ID: ${id}, ¡No Existe!.`);
+    const attributes = [...config.userAttributes, 'id', 'password'];
+    const userExists = await getUser({ email }, attributes, true);
 
-        await userExists.update({ status: false });
+    await comparePass(password, userExists.password);
 
-        return userExists;
+    const token = await generateJWT(userExists.id);
 
-    } catch (e) {
-
-        new Error(`Ocurrio Un Error : ${e}.`);
-        return false;
-
+    return {
+        token,
+        user: {
+            name: userExists.name,
+            email: userExists.email,
+        },
     };
-
 };
